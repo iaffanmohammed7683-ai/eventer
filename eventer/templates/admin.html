@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin Dashboard — {{ event_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--red:#e94560;--dark:#0b0920;--panel:#131029;--card:#1a1535;--border:rgba(255,255,255,.07);--muted:#8a8fa8;--white:#f0f0f5}
+    body{font-family:'Space Grotesk',sans-serif;background:var(--dark);color:var(--white);min-height:100vh}
+    nav{background:rgba(19,16,41,.9);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:64px;backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+    .nav-brand{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+    .brand-dot{width:8px;height:8px;background:var(--red);border-radius:50%}
+    .logout-btn{background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.3);color:var(--red);padding:8px 18px;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s}
+    .logout-btn:hover{background:rgba(233,69,96,.22)}
+    .container{max-width:1400px;margin:0 auto;padding:32px 24px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+    .stat-val{font-family:'Syne',sans-serif;font-size:40px;font-weight:800}
+    .stat-val.p{color:#f39c12}.stat-val.a{color:#2ecc71}.stat-val.r{color:var(--red)}
+    .stat-label{font-size:13px;color:var(--muted);margin-top:4px}
+    .tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);border-radius:12px;padding:4px;margin-bottom:24px;border:1px solid var(--border)}
+    .tab{flex:1;padding:10px;border:none;border-radius:9px;background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center}
+    .tab.active{background:var(--card);color:var(--white);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    /* Cards grid for pending */
+    .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px}
+    .reg-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:border-color .2s}
+    .reg-card:hover{border-color:rgba(233,69,96,.3)}
+    .reg-card-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+    .reg-name{font-family:'Syne',sans-serif;font-size:17px;font-weight:800}
+    .reg-pid{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:.5px}
+    .reg-time{font-size:11px;color:var(--muted);text-align:right}
+    .reg-body{padding:18px 20px}
+    .info-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px}
+    .info-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+    .info-val{font-weight:600;color:var(--white)}
+    /* UPI comparison box */
+    .upi-compare{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;margin:12px 0}
+    .upi-compare-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
+    .upi-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+    .upi-row:last-child{margin-bottom:0}
+    .upi-side-label{font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+    .upi-val{font-family:monospace;font-size:13px;padding:6px 12px;border-radius:6px;word-break:break-all}
+    .upi-val.ours{background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.2)}
+    .upi-val.theirs{background:rgba(74,144,217,.1);color:#4a90d9;border:1px solid rgba(74,144,217,.2)}
+    .upi-match{font-size:11px;font-weight:600;padding:4px 10px;border-radius:100px}
+    .upi-match.yes{background:rgba(46,204,113,.12);color:#2ecc71}
+    .upi-match.no{background:rgba(233,69,96,.12);color:var(--red)}
+    /* Screenshot */
+    .ss-section{margin:12px 0}
+    .ss-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+    .ss-thumb{width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:opacity .2s;max-height:160px;object-fit:cover}
+    .ss-thumb:hover{opacity:.85}
+    .ss-hint{font-size:11px;color:var(--muted);margin-top:4px;text-align:center}
+    /* UTR */
+    .utr-code{font-family:monospace;background:rgba(255,255,255,.06);padding:4px 10px;border-radius:6px;font-size:13px;color:#aaa;letter-spacing:.5px}
+    /* Actions */
+    .reg-actions{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px}
+    .approve-btn{flex:1;padding:12px;background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);color:#2ecc71;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+    .approve-btn:hover{background:rgba(46,204,113,.25)}
+    .reject-btn{flex:1;padding:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.25);color:var(--red);border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+    .reject-btn:hover{background:rgba(233,69,96,.2)}
+    /* Table for approved/rejected */
+    .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+    table{width:100%;border-collapse:collapse}
+    th{background:rgba(255,255,255,.04);padding:14px 20px;text-align:left;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+    td{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;font-size:12px;font-weight:600}
+    .badge-a{background:rgba(46,204,113,.12);color:#2ecc71;border:1px solid rgba(46,204,113,.25)}
+    .badge-r{background:rgba(233,69,96,.12);color:var(--red);border:1px solid rgba(233,69,96,.25)}
+    .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+    .empty-icon{font-size:40px;margin-bottom:12px}
+    /* Lightbox */
+    .lightbox{display:none;position:fixed;inset:0;z-index:300;background:rgba(5,3,18,.95);align-items:center;justify-content:center;padding:20px}
+    .lightbox.show{display:flex}
+    .lightbox img{max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 0 60px rgba(0,0,0,.8)}
+    .lightbox-close{position:absolute;top:20px;right:28px;font-size:32px;cursor:pointer;color:#fff;opacity:.7;transition:opacity .2s}
+    .lightbox-close:hover{opacity:1}
+    /* Reject modal */
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,8,28,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px}
+    .modal-overlay.show{display:flex}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px;max-width:440px;width:100%}
+    .modal h3{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px}
+    .modal p{color:var(--muted);font-size:14px;margin-bottom:20px}
+    .modal textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px;color:var(--white);font-family:'Space Grotesk',sans-serif;font-size:14px;resize:vertical;min-height:90px;outline:none}
+    .modal textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(233,69,96,.12)}
+    .modal-actions{display:flex;gap:12px;margin-top:16px}
+    .modal-confirm{flex:1;padding:14px;background:linear-gradient(135deg,#e94560,#c0392b);border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer}
+    .modal-cancel{flex:1;padding:14px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:15px;cursor:pointer;transition:all .2s}
+    .modal-cancel:hover{border-color:rgba(255,255,255,.2);color:var(--white)}
+    /* Toast */
+    .toast{position:fixed;bottom:32px;right:32px;z-index:400;background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:12px;font-size:14px;max-width:360px;transform:translateY(100px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.ok{border-color:rgba(46,204,113,.4)}.toast.err{border-color:rgba(233,69,96,.4)}
+    @media(max-width:700px){.stats{grid-template-columns:1fr 1fr}.cards-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close" onclick="closeLightbox()">✕</span>
+  <img id="lb-img" src="" alt="Payment Screenshot"/>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal">
+    <h3>Reject Registration</h3>
+    <p>The student will be notified by email. Optionally provide a reason.</p>
+    <textarea id="reject-reason" placeholder="e.g. UTR not found in bank records. Please resubmit with correct transaction ID."></textarea>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmReject()">Reject &amp; Notify</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="ticon">✓</span>&nbsp;<span id="tmsg"></span></div>
+
+<nav>
+  <div class="nav-brand"><div class="brand-dot"></div>{{ event_name }} — Admin</div>
+  <div style="display:flex;align-items:center;gap:20px">
+    <span style="font-size:12px;color:var(--muted)">Logged in as <strong style="color:var(--white)">Admin</strong></span>
+    <a class="logout-btn" href="/admin/logout">Logout</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val p" id="cnt-p">{{ pending|length }}</div>
+      <div class="stat-label">⏳ Pending Approval</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val a" id="cnt-a">{{ approved|length }}</div>
+      <div class="stat-label">✅ Approved &amp; E-Pass Sent</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val r" id="cnt-r">{{ rejected|length }}</div>
+      <div class="stat-label">❌ Rejected</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('pending',this)">⏳ Pending <span id="pb">({{ pending|length }})</span></button>
+    <button class="tab" onclick="showTab('approved',this)">✅ Approved <span id="ab">({{ approved|length }})</span></button>
+    <button class="tab" onclick="showTab('rejected',this)">❌ Rejected <span id="rb">({{ rejected|length }})</span></button>
+  </div>
+
+  <!-- PENDING -->
+  <div id="tab-pending">
+    {% if pending %}
+    <div class="cards-grid" id="pending-grid">
+      {% for s in pending %}
+      <div class="reg-card" id="card-{{ s.pass_id }}">
+        <div class="reg-card-header">
+          <div>
+            <div class="reg-name">{{ s.name }}</div>
+            <div class="reg-pid">{{ s.pass_id }}</div>
+          </div>
+          <div class="reg-time">{{ s.submitted_at }}</div>
+        </div>
+
+        <div class="reg-body">
+          <!-- Basic info -->
+          <div class="info-row"><span class="info-label">Roll No</span><span class="info-val">{{ s.roll_no }}</span></div>
+          <div class="info-row"><span class="info-label">Branch / Year</span><span class="info-val">{{ s.branch }} · Yr {{ s.year }}</span></div>
+          <div class="info-row"><span class="info-label">Email</span><span class="info-val" style="font-size:12px">{{ s.email }}</span></div>
+          <div class="info-row"><span class="info-label">UTR / Txn ID</span><span class="utr-code">{{ s.utr }}</span></div>
+
+          <!-- UPI comparison — the key verification block -->
+          <div class="upi-compare">
+            <div class="upi-compare-title">🔍 UPI ID Verification</div>
+            <div class="upi-row">
+              <span class="upi-side-label">Our UPI (receiver)</span>
+              <span class="upi-val ours">{{ our_upi }}</span>
+            </div>
+            <div class="upi-row">
+              <span class="upi-side-label">Student's UPI (sender)</span>
+              <span class="upi-val theirs">{{ s.upi_sent }}</span>
+            </div>
+          </div>
+
+          <!-- Payment screenshot -->
+          {% if s.screenshot_b64 %}
+          <div class="ss-section">
+            <div class="ss-label">📸 Payment Screenshot (click to enlarge)</div>
+            <img class="ss-thumb"
+                 src="data:image/jpeg;base64,{{ s.screenshot_b64 }}"
+                 alt="Payment Screenshot"
+                 onclick="openLightbox('data:image/jpeg;base64,{{ s.screenshot_b64 }}')"
+            />
+            <div class="ss-hint">Tap image to view full size</div>
+          </div>
+          {% else %}
+          <div style="padding:12px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.2);border-radius:10px;font-size:13px;color:var(--red);margin:12px 0">⚠ No screenshot uploaded</div>
+          {% endif %}
+        </div>
+
+        <div class="reg-actions">
+          <button class="approve-btn" onclick="approveReg('{{ s.pass_id }}')">✓ Approve &amp; Send E-Pass</button>
+          <button class="reject-btn"  onclick="openReject('{{ s.pass_id }}')">✕ Reject</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty"><div class="empty-icon">🎉</div><p>No pending registrations</p></div>
+    {% endif %}
+  </div>
+
+  <!-- APPROVED -->
+  <div id="tab-approved" style="display:none">
+    <div class="table-wrap">
+      {% if approved %}
+      <table>
+        <thead><tr><th>Student</th><th>Roll / Branch</th><th>Email</th><th>UTR</th><th>Sender UPI</th><th>Approved At</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for s in approved %}
+          <tr>
+            <td><strong>{{ s.name }}</strong><br><span style="font-size:11px;color:var(--muted)">{{ s.pass_id }}</span></td>
+            <td>{{ s.roll_no }}<br><span style="font-size:12px;color:var(--muted)">{{ s.branch }} · Yr {{ s.year }}</span></td>
+            <td style="font-size:13px">{{ s.email }}</td>
+            <td><span class="utr-code">{{ s.utr }}</span></td>
+            <td style="font-size:12px;color:#4a90d9">{{ s.upi_sent }}</td>
+            <td style="font-size:12px;color:var(--muted)">{{ s.approved_at }}</td>
+            <td><span class="badge badge-a">✓ E-Pass Sent</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="empty-icon">📭</div><p>No approved registrations yet</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- REJECTED -->
+  <div id="tab-rejected" style="display:none">
+    <div class="table-wrap">
+      {% if rejected %}
+      <table>
+        <thead><tr><th>Student</th><th>Roll / Branch</th><th>Email</th><th>UTR</th><th>Sender UPI</th><th>Reason</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for s in rejected %}
+          <tr>
+            <td><strong>{{ s.name }}</strong><br><span style="font-size:11px;color:var(--muted)">{{ s.pass_id }}</span></td>
+            <td>{{ s.roll_no }}<br><span style="font-size:12px;color:var(--muted)">{{ s.branch }} · Yr {{ s.year }}</span></td>
+            <td style="font-size:13px">{{ s.email }}</td>
+            <td><span class="utr-code">{{ s.utr }}</span></td>
+            <td style="font-size:12px;color:#4a90d9">{{ s.upi_sent }}</td>
+            <td style="font-size:12px;color:var(--muted)">{{ s.reject_reason or '—' }}</td>
+            <td><span class="badge badge-r">✕ Rejected</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><div class="empty-icon">✅</div><p>No rejections</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+  var rejectPid = '';
+
+  function showTab(name, btn) {
+    ['pending','approved','rejected'].forEach(function(t){
+      document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
+    });
+    document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  function toast(msg, type) {
+    document.getElementById('tmsg').textContent = msg;
+    document.getElementById('ticon').textContent = type === 'ok' ? '✓' : '✕';
+    var t = document.getElementById('toast');
+    t.className = 'toast ' + type + ' show';
+    setTimeout(function(){ t.classList.remove('show'); }, 4000);
+  }
+
+  function openLightbox(src) {
+    document.getElementById('lb-img').src = src;
+    document.getElementById('lightbox').classList.add('show');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+  }
+
+  function approveReg(pid) {
+    fetch('/admin/approve/' + pid, { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.success) {
+        var card = document.getElementById('card-' + pid);
+        if (card) card.remove();
+        updateCount('p', -1); updateCount('a', 1);
+        toast(d.name + ' approved! E-Pass ' + (d.email_sent ? 'sent ✓' : 'queued'), 'ok');
+      } else { toast(d.error || 'Error', 'err'); }
+    }).catch(function(){ toast('Network error', 'err'); });
+  }
+
+  function openReject(pid) {
+    rejectPid = pid;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-modal').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('reject-modal').classList.remove('show');
+    rejectPid = '';
+  }
+  function confirmReject() {
+    var reason = document.getElementById('reject-reason').value.trim() || 'Payment could not be verified.';
+    fetch('/admin/reject/' + rejectPid, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      closeModal();
+      if (d.success) {
+        var card = document.getElementById('card-' + rejectPid);
+        if (card) card.remove();
+        updateCount('p', -1); updateCount('r', 1);
+        toast(d.name + ' rejected & notified', 'err');
+      } else { toast(d.error || 'Error', 'err'); }
+    }).catch(function(){ closeModal(); toast('Network error', 'err'); });
+  }
+
+  function updateCount(key, delta) {
+    var map = { p: ['cnt-p','pb'], a: ['cnt-a','ab'], r: ['cnt-r','rb'] };
+    var ids = map[key];
+    var el = document.getElementById(ids[0]);
+    var n = parseInt(el.textContent) + delta;
+    el.textContent = n;
+    document.getElementById(ids[1]).textContent = '(' + n + ')';
+  }
+
+  document.getElementById('reject-modal').addEventListener('click', function(e){
+    if (e.target === this) closeModal();
+  });
+</script>
+</body>
+</html>
