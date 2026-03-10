@@ -217,8 +217,8 @@ def send_rejection_email(student, reason, ev_name):
 
 def _send(mail_user, mail_pass, to_email, msg):
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as s:
-            s.ehlo(); s.starttls(); s.ehlo()
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+            s.ehlo()
             s.login(mail_user, mail_pass)
             s.sendmail(mail_user, to_email, msg.as_string())
         print(f'[EMAIL OK] Sent to {to_email}'); return True
@@ -368,3 +368,4 @@ def reject(pass_id):
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__), 'static'), exist_ok=True)
     app.run(debug=True, port=5001)
+
