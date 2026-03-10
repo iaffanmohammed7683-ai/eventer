@@ -1,5 +1,5 @@
 flask==3.0.0
-pillow==10.2.0
+pillow==11.1.0
 qrcode[pil]==7.4.2
 supabase==2.3.4
 httpx==0.24.1
