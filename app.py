@@ -3,6 +3,11 @@ import qrcode, io, base64, uuid, os, requests
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 # ══════════════════════════════════════════════════════════════
 #  LOCAL CONFIG — fill in your actual values below
@@ -165,7 +170,7 @@ def generate_subevent_epass(reg, ev):
 
 def send_subevent_epass_email(reg, ev):
     api_key = os.environ.get('RESEND_API_KEY','').strip()
-    if not api_key: return False
+
     epass_bytes = generate_subevent_epass(reg, ev)
     epass_b64   = base64.b64encode(epass_bytes).decode()
     team_line   = f"<p style='margin:4px 0'><strong>Team:</strong> {reg.get('team_name','')}</p>" if ev['type']=='team' else ''
@@ -189,7 +194,7 @@ def send_subevent_epass_email(reg, ev):
 
 def send_rejection_email(student, reason, ev_name):
     api_key = os.environ.get('RESEND_API_KEY','').strip()
-    if not api_key: return False
+
     html = f"""<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
         <div style="background:#0a0a1a;padding:30px;text-align:center;">
@@ -203,32 +208,80 @@ def send_rejection_email(student, reason, ev_name):
     return _send_resend(api_key, student['email'], f"Registration Update - {ev_name}", html)
 
 def _send_resend(api_key, to_email, subject, html, attachment_b64=None, attachment_name=None):
+    """
+    Dual-mode sender:
+      - If `api_key` provided -> use Resend API (original behaviour).
+      - Otherwise -> fallback to Gmail SMTP using MAIL_USER / MAIL_PASS.
+    Keeps existing callers' signature unchanged.
+    """
+    # --- If Resend API key is present, keep using Resend ---
+    if api_key:
+        try:
+            payload = {
+                'from': 'Euphoria 2K26 <onboarding@resend.dev>',
+                'to': [to_email],
+                'subject': subject,
+                'html': html,
+            }
+            if attachment_b64 and attachment_name:
+                payload['attachments'] = [{
+                    'filename': attachment_name,
+                    'content':  attachment_b64,
+                }]
+            resp = requests.post(
+                'https://api.resend.com/emails',
+                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                json=payload,
+                timeout=15
+            )
+            if resp.status_code in (200, 201):
+                print(f'[EMAIL OK - RESEND] Sent to {to_email}')
+                return True
+            else:
+                print(f'[EMAIL ERROR - RESEND] {resp.status_code} {resp.text}')
+                # fallthrough to SMTP fallback if possible
+        except Exception as e:
+            print(f'[EMAIL ERROR - RESEND] {e}')
+            # fallthrough to SMTP fallback if possible
+
+    # --- Fallback to Gmail SMTP (MAIL_USER / MAIL_PASS) ---
+    sender = os.environ.get('MAIL_USER','').strip()
+    password = os.environ.get('MAIL_PASS','').strip()
+    if not sender or not password:
+        print("[EMAIL ERROR - SMTP] MAIL_USER / MAIL_PASS not set")
+        return False
+
+    # build message
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(html, "html"))
+
+    if attachment_b64 and attachment_name:
+        try:
+            attachment_data = base64.b64decode(attachment_b64)
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment_data)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{attachment_name}"')
+            msg.attach(part)
+        except Exception as e:
+            print(f"[EMAIL ERROR - SMTP] attachment decode failed: {e}")
+            return False
+
     try:
-        payload = {
-            'from': 'Euphoria 2K26 <onboarding@resend.dev>',
-            'to': [to_email],
-            'subject': subject,
-            'html': html,
-        }
-        if attachment_b64 and attachment_name:
-            payload['attachments'] = [{
-                'filename': attachment_name,
-                'content':  attachment_b64,
-            }]
-        resp = requests.post(
-            'https://api.resend.com/emails',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json=payload,
-            timeout=15
-        )
-        if resp.status_code in (200, 201):
-            print(f'[EMAIL OK] Sent to {to_email}'); return True
-        else:
-            print(f'[EMAIL ERROR] {resp.status_code} {resp.text}'); return False
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=20)
+        server.ehlo()
+        server.starttls()
+        server.login(sender, password)
+        server.sendmail(sender, to_email, msg.as_string())
+        server.quit()
+        print(f"[EMAIL OK - SMTP] Sent to {to_email}")
+        return True
     except Exception as e:
-        print(f'[EMAIL ERROR] {e}'); return False
-
-
+        print(f"[EMAIL ERROR - SMTP] {e}")
+        return False
 # ══════════════════════════════════════════════════════════════
 #  ROUTES
 # ══════════════════════════════════════════════════════════════
