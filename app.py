@@ -1,10 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-import qrcode, io, base64, uuid, os, smtplib
+import qrcode, io, base64, uuid, os, requests
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
 
@@ -24,6 +20,7 @@ os.environ.setdefault('UPI_ID',         '9133651540@axl')
 os.environ.setdefault('ACCOUNT_NAME',   'md affane')
 os.environ.setdefault('MAIL_USER',      'iaffanmohammed7683@gmail.com')
 os.environ.setdefault('MAIL_PASS',      'pabs cslf ocou cnkb')
+os.environ.setdefault('RESEND_API_KEY', 're_TTaTmgsv_6bqGd1WP9Sx5Hfk5Y6maiWXn')
 # ══════════════════════════════════════════════════════════════
 
 app = Flask(__name__)
@@ -167,15 +164,12 @@ def generate_subevent_epass(reg, ev):
 # ── EMAIL ─────────────────────────────────────────────────────
 
 def send_subevent_epass_email(reg, ev):
-    mail_user, mail_pass = get_mail_creds()
-    if not mail_user or not mail_pass: return False
+    api_key = os.environ.get('RESEND_API_KEY','').strip()
+    if not api_key: return False
     epass_bytes = generate_subevent_epass(reg, ev)
-    msg = MIMEMultipart('mixed')
-    msg['Subject'] = f"Your E-Pass for {ev['name']} - {reg['pass_id']}"
-    msg['From'] = mail_user; msg['To'] = reg['email']
-    team_line = f"<p style='margin:4px 0'><strong>Team:</strong> {reg.get('team_name','')}</p>" if ev['type']=='team' else ''
-    body = MIMEMultipart('alternative')
-    body.attach(MIMEText(f"""<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
+    epass_b64   = base64.b64encode(epass_bytes).decode()
+    team_line   = f"<p style='margin:4px 0'><strong>Team:</strong> {reg.get('team_name','')}</p>" if ev['type']=='team' else ''
+    html = f"""<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
         <div style="background:#0a0a1a;padding:30px;text-align:center;">
           <h1 style="color:{ev['color']};margin:0;">{ev['name']}</h1>
@@ -189,19 +183,13 @@ def send_subevent_epass_email(reg, ev):
             {team_line}
             <p style="margin:4px 0"><strong>Date:</strong> {EVENT_DATE}</p>
             <p style="margin:4px 0"><strong>Venue:</strong> {EVENT_VENUE}</p></div>
-          <p>Show your E-Pass at the entrance for entry.</p></div></div></div>""", 'html'))
-    msg.attach(body)
-    part = MIMEBase('image','png'); part.set_payload(epass_bytes); encoders.encode_base64(part)
-    part.add_header('Content-Disposition','attachment', filename=f"epass_{reg['pass_id']}.png")
-    msg.attach(part)
-    return _send(mail_user, mail_pass, reg['email'], msg)
+          <p>Show your E-Pass at the entrance for entry.</p></div></div></div>"""
+    return _send_resend(api_key, reg['email'], f"Your E-Pass for {ev['name']} - {reg['pass_id']}", html,
+                        epass_b64, f"epass_{reg['pass_id']}.png")
 
 def send_rejection_email(student, reason, ev_name):
-    mail_user, mail_pass = get_mail_creds()
-    if not mail_user or not mail_pass: return False
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f"Registration Update - {ev_name}"
-    msg['From'] = mail_user; msg['To'] = student['email']
+    api_key = os.environ.get('RESEND_API_KEY','').strip()
+    if not api_key: return False
     html = f"""<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
         <div style="background:#0a0a1a;padding:30px;text-align:center;">
@@ -211,17 +199,32 @@ def send_rejection_email(student, reason, ev_name):
           <p>We could not verify your payment for <strong>{ev_name}</strong>:</p>
           <div style="background:#fff5f5;border-left:4px solid #e94560;padding:15px;margin:20px 0;">
             <p style="margin:0;color:#c0392b;">{reason}</p></div>
-          <p>Contact us at {mail_user} for help.</p></div></div></div>"""
-    msg.attach(MIMEText(html, 'html'))
-    return _send(mail_user, mail_pass, student['email'], msg)
+          <p>Contact us at euphoria2k26@gmail.com for help.</p></div></div></div>"""
+    return _send_resend(api_key, student['email'], f"Registration Update - {ev_name}", html)
 
-def _send(mail_user, mail_pass, to_email, msg):
+def _send_resend(api_key, to_email, subject, html, attachment_b64=None, attachment_name=None):
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-            s.ehlo()
-            s.login(mail_user, mail_pass)
-            s.sendmail(mail_user, to_email, msg.as_string())
-        print(f'[EMAIL OK] Sent to {to_email}'); return True
+        payload = {
+            'from': 'Euphoria 2K26 <onboarding@resend.dev>',
+            'to': [to_email],
+            'subject': subject,
+            'html': html,
+        }
+        if attachment_b64 and attachment_name:
+            payload['attachments'] = [{
+                'filename': attachment_name,
+                'content':  attachment_b64,
+            }]
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=15
+        )
+        if resp.status_code in (200, 201):
+            print(f'[EMAIL OK] Sent to {to_email}'); return True
+        else:
+            print(f'[EMAIL ERROR] {resp.status_code} {resp.text}'); return False
     except Exception as e:
         print(f'[EMAIL ERROR] {e}'); return False
 
@@ -368,4 +371,5 @@ def reject(pass_id):
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__), 'static'), exist_ok=True)
     app.run(debug=True, port=5001)
+
 
