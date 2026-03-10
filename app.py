@@ -49,7 +49,7 @@ SUB_EVENTS = {
     'treasure-hunt': {
     'name':        'Treasure Hunt',
     'emoji':       '🗺️',
-    'fee':         100,
+    'fee':         300,
     'type':        'team',
     'max_members': 5,
     'description': 'Campus-wide treasure hunt — max 5 members per team',
@@ -58,7 +58,7 @@ SUB_EVENTS = {
     'slow-bike-race': {
         'name':        'Slow Bike Race',
         'emoji':       '🚲',
-        'fee':         300,
+        'fee':         100,
         'type':        'individual',
         'max_members': 1,
         'description': 'Last one to finish wins!',
@@ -371,5 +371,3 @@ def reject(pass_id):
 if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(__file__), 'static'), exist_ok=True)
     app.run(debug=True, port=5001)
-
-
