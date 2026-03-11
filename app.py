@@ -3,15 +3,7 @@ import qrcode, io, base64, uuid, os, requests
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 
-# ══════════════════════════════════════════════════════════════
-#  LOCAL CONFIG — fill in your actual values below
-#  On Railway, set these as environment variables instead
 # ══════════════════════════════════════════════════════════════
 os.environ.setdefault('SUPABASE_URL',   'https://mnsgpgoakhwoixcotlpk.supabase.co')
 os.environ.setdefault('SUPABASE_KEY',   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uc2dwZ29ha2h3b2l4Y290bHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzk2NjEsImV4cCI6MjA4ODYxNTY2MX0.k-vVLPBj2y9J_kGvAEl_bATsEn8LBA3AD3RsxZ0U8Jg')
@@ -24,8 +16,7 @@ os.environ.setdefault('EVENT_VENUE',    'VAAGDEVI COLLEGES BOLLIKUNTA')
 os.environ.setdefault('UPI_ID',         '9133651540@axl')
 os.environ.setdefault('ACCOUNT_NAME',   'md affane')
 os.environ.setdefault('MAIL_USER',      'iaffanmohammed7683@gmail.com')
-os.environ.setdefault('MAIL_PASS',      'pabs cslf ocou cnkb')
-os.environ.setdefault('RESEND_API_KEY', 're_TTaTmgsv_6bqGd1WP9Sx5Hfk5Y6maiWXn')
+os.environ.setdefault('BREVO_API_KEY',  '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')
 # ══════════════════════════════════════════════════════════════
 
 app = Flask(__name__)
@@ -38,9 +29,6 @@ ACCOUNT_NAME  = os.environ.get('ACCOUNT_NAME','md affan')
 BANK_QR_IMAGE = os.path.join(os.path.dirname(__file__), 'static', 'bank_qr.png')
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(32)
 
-# ══════════════════════════════════════════════════════════════
-#  SUB-EVENTS CONFIG — edit here
-# ══════════════════════════════════════════════════════════════
 SUB_EVENTS = {
     'esports': {
         'name':        'Esports',
@@ -52,13 +40,13 @@ SUB_EVENTS = {
         'color':       '#7c3aed',
     },
     'treasure-hunt': {
-    'name':        'Treasure Hunt',
-    'emoji':       '🗺️',
-    'fee':         300,
-    'type':        'team',
-    'max_members': 5,
-    'description': 'Campus-wide treasure hunt — max 5 members per team',
-    'color':       '#d97706',
+        'name':        'Treasure Hunt',
+        'emoji':       '🗺️',
+        'fee':         300,
+        'type':        'team',
+        'max_members': 5,
+        'description': 'Campus-wide treasure hunt — max 5 members per team',
+        'color':       '#d97706',
     },
     'slow-bike-race': {
         'name':        'Slow Bike Race',
@@ -70,11 +58,6 @@ SUB_EVENTS = {
         'color':       '#059669',
     },
 }
-# ══════════════════════════════════════════════════════════════
-
-
-def get_mail_creds():
-    return os.environ.get('MAIL_USER','').strip(), os.environ.get('MAIL_PASS','').strip()
 
 def check_admin_credentials(username, password):
     u = os.environ.get('ADMIN_USERNAME','').strip()
@@ -116,7 +99,6 @@ def admin_required(f):
 def generate_subevent_epass(reg, ev):
     W, H = 900, 420
     hex_col = ev['color'].lstrip('#')
-    accent  = tuple(int(hex_col[i:i+2],16) for i in (0,2,4))
     img  = Image.new('RGB', (W, H), '#0a0a1a')
     draw = ImageDraw.Draw(img)
     for i in range(H):
@@ -166,11 +148,36 @@ def generate_subevent_epass(reg, ev):
     buf = io.BytesIO(); img.save(buf, format='PNG', dpi=(150,150)); return buf.getvalue()
 
 
-# ── EMAIL ─────────────────────────────────────────────────────
+# ── EMAIL via Brevo ───────────────────────────────────────────
+
+def _send_brevo(to_email, subject, html, attachment_b64=None, attachment_name=None):
+    api_key  = os.environ.get('BREVO_API_KEY','').strip()
+    sender   = os.environ.get('MAIL_USER','iaffanmohammed7683@gmail.com').strip()
+    if not api_key:
+        print('[EMAIL ERROR] BREVO_API_KEY not set'); return False
+    payload = {
+        'sender':  {'name': 'Euphoria 2K26', 'email': sender},
+        'to':      [{'email': to_email}],
+        'subject': subject,
+        'htmlContent': html,
+    }
+    if attachment_b64 and attachment_name:
+        payload['attachment'] = [{'name': attachment_name, 'content': attachment_b64}]
+    try:
+        resp = requests.post(
+            'https://api.brevo.com/v3/smtp/email',
+            headers={'api-key': api_key, 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=20
+        )
+        if resp.status_code in (200, 201):
+            print(f'[EMAIL OK - BREVO] Sent to {to_email}'); return True
+        else:
+            print(f'[EMAIL ERROR - BREVO] {resp.status_code} {resp.text}'); return False
+    except Exception as e:
+        print(f'[EMAIL ERROR - BREVO] {e}'); return False
 
 def send_subevent_epass_email(reg, ev):
-    api_key = os.environ.get('RESEND_API_KEY','').strip()
-
     epass_bytes = generate_subevent_epass(reg, ev)
     epass_b64   = base64.b64encode(epass_bytes).decode()
     team_line   = f"<p style='margin:4px 0'><strong>Team:</strong> {reg.get('team_name','')}</p>" if ev['type']=='team' else ''
@@ -189,12 +196,10 @@ def send_subevent_epass_email(reg, ev):
             <p style="margin:4px 0"><strong>Date:</strong> {EVENT_DATE}</p>
             <p style="margin:4px 0"><strong>Venue:</strong> {EVENT_VENUE}</p></div>
           <p>Show your E-Pass at the entrance for entry.</p></div></div></div>"""
-    return _send_resend(api_key, reg['email'], f"Your E-Pass for {ev['name']} - {reg['pass_id']}", html,
-                        epass_b64, f"epass_{reg['pass_id']}.png")
+    return _send_brevo(reg['email'], f"Your E-Pass for {ev['name']} - {reg['pass_id']}", html,
+                       epass_b64, f"epass_{reg['pass_id']}.png")
 
 def send_rejection_email(student, reason, ev_name):
-    api_key = os.environ.get('RESEND_API_KEY','').strip()
-
     html = f"""<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
         <div style="background:#0a0a1a;padding:30px;text-align:center;">
@@ -204,84 +209,10 @@ def send_rejection_email(student, reason, ev_name):
           <p>We could not verify your payment for <strong>{ev_name}</strong>:</p>
           <div style="background:#fff5f5;border-left:4px solid #e94560;padding:15px;margin:20px 0;">
             <p style="margin:0;color:#c0392b;">{reason}</p></div>
-          <p>Contact us at euphoria2k26@gmail.com for help.</p></div></div></div>"""
-    return _send_resend(api_key, student['email'], f"Registration Update - {ev_name}", html)
+          <p>Contact us at iaffanmohammed7683@gmail.com for help.</p></div></div></div>"""
+    return _send_brevo(student['email'], f"Registration Update - {ev_name}", html)
 
-def _send_resend(api_key, to_email, subject, html, attachment_b64=None, attachment_name=None):
-    """
-    Dual-mode sender:
-      - If `api_key` provided -> use Resend API (original behaviour).
-      - Otherwise -> fallback to Gmail SMTP using MAIL_USER / MAIL_PASS.
-    Keeps existing callers' signature unchanged.
-    """
-    # --- If Resend API key is present, keep using Resend ---
-    if api_key:
-        try:
-            payload = {
-                'from': 'Euphoria 2K26 <onboarding@resend.dev>',
-                'to': [to_email],
-                'subject': subject,
-                'html': html,
-            }
-            if attachment_b64 and attachment_name:
-                payload['attachments'] = [{
-                    'filename': attachment_name,
-                    'content':  attachment_b64,
-                }]
-            resp = requests.post(
-                'https://api.resend.com/emails',
-                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-                json=payload,
-                timeout=15
-            )
-            if resp.status_code in (200, 201):
-                print(f'[EMAIL OK - RESEND] Sent to {to_email}')
-                return True
-            else:
-                print(f'[EMAIL ERROR - RESEND] {resp.status_code} {resp.text}')
-                # fallthrough to SMTP fallback if possible
-        except Exception as e:
-            print(f'[EMAIL ERROR - RESEND] {e}')
-            # fallthrough to SMTP fallback if possible
 
-    # --- Fallback to Gmail SMTP (MAIL_USER / MAIL_PASS) ---
-    sender = os.environ.get('MAIL_USER','').strip()
-    password = os.environ.get('MAIL_PASS','').strip()
-    if not sender or not password:
-        print("[EMAIL ERROR - SMTP] MAIL_USER / MAIL_PASS not set")
-        return False
-
-    # build message
-    msg = MIMEMultipart()
-    msg["From"] = sender
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(html, "html"))
-
-    if attachment_b64 and attachment_name:
-        try:
-            attachment_data = base64.b64decode(attachment_b64)
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(attachment_data)
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f'attachment; filename="{attachment_name}"')
-            msg.attach(part)
-        except Exception as e:
-            print(f"[EMAIL ERROR - SMTP] attachment decode failed: {e}")
-            return False
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=20)
-        server.ehlo()
-        server.starttls()
-        server.login(sender, password)
-        server.sendmail(sender, to_email, msg.as_string())
-        server.quit()
-        print(f"[EMAIL OK - SMTP] Sent to {to_email}")
-        return True
-    except Exception as e:
-        print(f"[EMAIL ERROR - SMTP] {e}")
-        return False
 # ══════════════════════════════════════════════════════════════
 #  ROUTES
 # ══════════════════════════════════════════════════════════════
@@ -371,22 +302,18 @@ def admin_logout():
 @admin_required
 def admin_dashboard():
     db = get_db()
-
     def tag(rows, ev_name, ev_slug):
         for r in rows:
             r['_event_name'] = ev_name
             r['_event_slug'] = ev_slug
         return rows
-
     all_p, all_a, all_r = [], [], []
     for slug, ev in SUB_EVENTS.items():
         tbl = 'subevent_registrations'
         all_p += tag(db.table(tbl).select('*').eq('event_slug',slug).eq('status','pending').order('submitted_at',desc=True).execute().data,  ev['name'], slug)
         all_a += tag(db.table(tbl).select('*').eq('event_slug',slug).eq('status','approved').order('approved_at',desc=True).execute().data,  ev['name'], slug)
         all_r += tag(db.table(tbl).select('*').eq('event_slug',slug).eq('status','rejected').order('rejected_at',desc=True).execute().data,  ev['name'], slug)
-
     all_p.sort(key=lambda x: x.get('submitted_at',''), reverse=True)
-
     return render_template('admin.html',
         pending=all_p, approved=all_a, rejected=all_r,
         event_name=EVENT_NAME, our_upi=UPI_ID, sub_events=SUB_EVENTS)
