@@ -33,7 +33,7 @@ SUB_EVENTS = {
     'esports': {
         'name':        'Esports',
         'emoji':       '🎮',
-        'fee':         300,
+        'fee':         400,
         'type':        'team',
         'max_members': 4,
         'description': 'Team gaming tournament — max 4 players per team',
