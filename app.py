@@ -33,7 +33,7 @@ SUB_EVENTS = {
     'esports': {
         'name':        'Esports',
         'emoji':       '🎮',
-        'fee':         400,
+        'fee':         300,
         'type':        'team',
         'max_members': 4,
         'description': 'Team gaming tournament — max 4 players per team',
@@ -42,7 +42,7 @@ SUB_EVENTS = {
     'treasure-hunt': {
         'name':        'Treasure Hunt',
         'emoji':       '🗺️',
-        'fee':         300,
+        'fee':         200,
         'type':        'team',
         'max_members': 5,
         'description': 'Campus-wide treasure hunt — max 5 members per team',
