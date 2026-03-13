@@ -38,6 +38,7 @@ SUB_EVENTS = {
         'max_members': 4,
         'description': 'Team gaming tournament — max 4 players per team',
         'color':       '#7c3aed',
+        'full':        False,
     },
     'treasure-hunt': {
         'name':        'Treasure Hunt',
@@ -47,6 +48,7 @@ SUB_EVENTS = {
         'max_members': 5,
         'description': 'Campus-wide treasure hunt — max 5 members per team',
         'color':       '#d97706',
+        'full':        True,
     },
     'slow-bike-race': {
         'name':        'Slow Bike Race',
@@ -56,6 +58,7 @@ SUB_EVENTS = {
         'max_members': 1,
         'description': 'Last one to finish wins!',
         'color':       '#059669',
+        'full':        False,
     },
 }
 
@@ -227,6 +230,8 @@ def index():
 def subevent_register(slug):
     ev = SUB_EVENTS.get(slug)
     if not ev: return "Event not found", 404
+    if ev.get('full'):
+        return render_template('event_full.html', ev=ev, event_name=EVENT_NAME)
     return render_template('subevent_register.html',
         ev=ev, slug=slug, event_name=EVENT_NAME,
         event_date=EVENT_DATE, event_venue=EVENT_VENUE,
@@ -237,6 +242,7 @@ def subevent_register(slug):
 def subevent_submit(slug):
     ev = SUB_EVENTS.get(slug)
     if not ev: return jsonify({'success':False,'error':'Invalid event.'}),404
+    if ev.get('full'): return jsonify({'success':False,'error':'Registrations are full.'}),400
     name       = request.form.get('name','').strip()
     roll_no    = request.form.get('roll_no','').strip()
     branch     = request.form.get('branch','').strip()
