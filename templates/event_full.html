@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ ev['name'] }} — Registrations Full</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Space Grotesk',sans-serif;background:#0f0c29;color:#f0f0f5;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .bg-grid{position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(233,69,96,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(233,69,96,.04) 1px,transparent 1px);background-size:60px 60px}
+    .card{position:relative;z-index:1;background:rgba(22,33,62,.9);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:60px 40px;text-align:center;max-width:480px;width:90%;backdrop-filter:blur(12px);}
+    .emoji{font-size:72px;margin-bottom:24px;display:block;}
+    .tag{display:inline-block;background:rgba(233,69,96,.15);border:1px solid rgba(233,69,96,.4);color:#e94560;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;padding:5px 16px;border-radius:100px;margin-bottom:20px;}
+    h1{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:#fff;margin-bottom:12px;}
+    p{color:#8a8fa8;font-size:15px;line-height:1.7;margin-bottom:32px;}
+    .back-btn{display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#e94560,#ff6b35);border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;text-decoration:none;transition:opacity .2s;}
+    .back-btn:hover{opacity:.85}
+    .ev-name{color:{{ ev['color'] }};font-weight:700;}
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="card">
+  <span class="emoji">😔</span>
+  <div class="tag">Registrations Closed</div>
+  <h1>Better Luck Next Time!</h1>
+  <p>Registrations for <span class="ev-name">{{ ev['name'] }}</span> are full. We've reached our maximum capacity for this event.</p>
+  <p>Stay tuned for future events from <strong>{{ event_name }}</strong>!</p>
+  <a href="/" class="back-btn">← Back to Events</a>
+</div>
+</body>
+</html>
