@@ -58,7 +58,7 @@ SUB_EVENTS = {
         'max_members': 1,
         'description': 'Last one to finish wins!',
         'color':       '#059669',
-        'full':        False,
+        'full':        True,
     },
 }
 
