@@ -38,7 +38,7 @@ SUB_EVENTS = {
         'max_members': 4,
         'description': 'Team gaming tournament — max 4 players per team',
         'color':       '#7c3aed',
-        'full':        False,
+        'full':        True,
     },
     'treasure-hunt': {
         'name':        'Treasure Hunt',
